@@ -65,7 +65,7 @@ export const IntentionSelector: React.FC<IntentionSelectorProps> = ({
               type="text"
               value={intention}
               onChange={(e) => setIntention(e.target.value)}
-              placeholder="e.g. Write PRD documentation, refactor auth engine..."
+              placeholder="e.g. Plant a habit: read one chapter, sketch a layout, learn a new topic..."
               className="w-full px-4 py-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all text-sm"
             />
             <Sparkles className="absolute right-3.5 top-3.5 w-4 h-4 text-emerald-500/50 pointer-events-none" />
