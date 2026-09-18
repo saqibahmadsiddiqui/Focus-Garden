@@ -3,6 +3,7 @@
 import React from 'react';
 import { PlantRecord, FocusCategory } from '@/types/garden';
 import { Flame, Clock, Trophy, Target, PieChart } from 'lucide-react';
+import { getCategoryBadgeStyle } from '@/utils/colorGenerator';
 
 interface AnalyticsBarProps {
   plants: PlantRecord[];
@@ -149,6 +150,46 @@ export const AnalyticsBar: React.FC<AnalyticsBarProps> = ({
             );
           })}
         </div>
+      </div>
+
+      {/* Focus Minutes by Category */}
+      <div className="p-5 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 space-y-3 shadow-sm">
+        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+          Focus by Category
+        </div>
+
+        {Object.values(categoryCounts).every((minutes) => minutes === 0) ? (
+          <p className="text-xs text-slate-400 text-center py-2">
+            No bloomed sessions yet — complete a session to see your breakdown.
+          </p>
+        ) : (
+          <div className="space-y-2.5">
+            {(Object.keys(categoryCounts) as FocusCategory[])
+              .filter((cat) => categoryCounts[cat] > 0)
+              .sort((a, b) => categoryCounts[b] - categoryCounts[a])
+              .map((cat) => {
+                const badge = getCategoryBadgeStyle(cat);
+                const maxMinutes = Math.max(...Object.values(categoryCounts));
+                const widthPercent = maxMinutes > 0 ? (categoryCounts[cat] / maxMinutes) * 100 : 0;
+                return (
+                  <div key={cat} className="flex items-center gap-3">
+                    <span className={`shrink-0 w-24 px-2 py-0.5 rounded-full text-[10px] font-bold border text-center ${badge.bg} ${badge.text} ${badge.border}`}>
+                      {badge.icon} #{cat}
+                    </span>
+                    <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${widthPercent}%` }}
+                      />
+                    </div>
+                    <span className="w-14 shrink-0 text-right text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      {categoryCounts[cat]}m
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -30,6 +30,45 @@ const INITIAL_STATE: GardenState = {
   settings: DEFAULT_SETTINGS,
 };
 
+// Validates a single plant record's shape before it's allowed into state, so a
+// corrupted/hand-edited/outdated record can't reach components like PlantSVG that
+// assume every field (e.g. colorSeed) is present and crash the whole garden view.
+function isValidPlantRecord(p: unknown): p is PlantRecord {
+  if (!p || typeof p !== 'object') return false;
+  const r = p as Record<string, unknown>;
+  return (
+    typeof r.id === 'string' &&
+    typeof r.plantedAt === 'string' &&
+    typeof r.durationMinutes === 'number' &&
+    typeof r.actualFocusedSeconds === 'number' &&
+    typeof r.completed === 'boolean' &&
+    typeof r.species === 'string' &&
+    typeof r.categoryTag === 'string' &&
+    typeof r.intention === 'string' &&
+    typeof r.colorSeed === 'object' && r.colorSeed !== null &&
+    typeof r.timeOfDay === 'string'
+  );
+}
+
+// Validates the full persisted/imported shape, including the version tag, so data
+// from an incompatible schema is rejected instead of silently corrupting the app.
+function isValidGardenState(parsed: unknown): parsed is GardenState {
+  if (!parsed || typeof parsed !== 'object') return false;
+  const s = parsed as Record<string, unknown>;
+  return (
+    s.version === INITIAL_STATE.version &&
+    Array.isArray(s.plants) &&
+    s.plants.every(isValidPlantRecord) &&
+    typeof s.settings === 'object' && s.settings !== null
+  );
+}
+
+// Kept as a plain top-level helper (not inline in the hook body) so the impure
+// Math.random() fallback isn't flagged as a render-purity violation.
+function generateSessionId(): string {
+  return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+}
+
 export interface ActiveSession {
   id: string;
   startTime: string;
@@ -51,6 +90,15 @@ export function useGardenStore() {
   const [isLoaded, setIsLoaded] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Always holds the latest activeSession, so cancelSession/completeSession can read
+  // fresh data without needing activeSession itself in their useCallback deps (which
+  // would otherwise recreate them — and the interval that depends on them — every tick).
+  // Synced via effect rather than during render: refs must not be written mid-render.
+  const activeSessionRef = useRef<ActiveSession | null>(null);
+  useEffect(() => {
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
+
   // Load from localStorage on mount. This must stay an effect (not a lazy useState
   // initializer) because localStorage is only readable client-side; reading it during
   // render would desync the server-rendered HTML from the client's first paint.
@@ -59,8 +107,12 @@ export function useGardenStore() {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setState(parsed);
+        if (isValidGardenState(parsed)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setState({ ...INITIAL_STATE, ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } });
+        } else {
+          console.warn('Ignoring stored garden data with an unrecognized shape/version; starting fresh.');
+        }
       }
     } catch (e) {
       console.error('Failed to parse localStorage data:', e);
@@ -77,6 +129,13 @@ export function useGardenStore() {
       console.error('Failed to save to localStorage:', e);
     }
   }, [state, isLoaded]);
+
+  // Keep the sound engine's live volume in sync with the persisted setting — previously
+  // ambientVolume was stored but never actually applied anywhere.
+  useEffect(() => {
+    if (!isLoaded || !soundEngine) return;
+    soundEngine.setVolume(state.settings.ambientVolume);
+  }, [state.settings.ambientVolume, isLoaded]);
 
   // Apply the resolved light/dark theme to <html>, tracking the OS preference while in 'auto'
   useEffect(() => {
@@ -99,11 +158,13 @@ export function useGardenStore() {
     }
   }, [state.settings.themeMode, isLoaded]);
 
-  // Calculate streak logic helper
-  const updateStreakAndMetrics = (plants: PlantRecord[]) => {
+  // Calculate streak logic helper. Takes the previous state explicitly (rather than
+  // closing over the outer `state`) so it always reflects the value setState is
+  // actually transitioning from, not whatever was current at the last render.
+  const updateStreakAndMetrics = (plants: PlantRecord[], prevState: GardenState) => {
     const completedPlants = plants.filter((p) => p.completed);
     if (completedPlants.length === 0) {
-      return { currentStreak: 0, longestStreak: 0, totalFocusedMinutes: 0, totalWilts: plants.length };
+      return { currentStreak: 0, longestStreak: prevState.longestStreak, totalFocusedMinutes: 0, totalWilts: plants.length };
     }
 
     // Get unique YYYY-MM-DD completion dates sorted descending
@@ -144,7 +205,7 @@ export function useGardenStore() {
 
     return {
       currentStreak,
-      longestStreak: Math.max(state.longestStreak, currentStreak),
+      longestStreak: Math.max(prevState.longestStreak, currentStreak),
       totalFocusedMinutes,
       totalWilts,
     };
@@ -159,7 +220,7 @@ export function useGardenStore() {
   ) => {
     const timeOfDay = getTimeOfDay();
     const newSession: ActiveSession = {
-      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+      id: generateSessionId(),
       startTime: new Date().toISOString(),
       targetSeconds: durationMinutes * 60,
       elapsedSeconds: 0,
@@ -174,6 +235,9 @@ export function useGardenStore() {
     };
 
     setActiveSession(newSession);
+
+    // Remember this duration/species as the new default for next time
+    updateSettings({ defaultDuration: durationMinutes, selectedSpecies: species });
 
     // Start ambient sound if selected
     if (state.settings.ambientSound && soundEngine) {
@@ -193,9 +257,12 @@ export function useGardenStore() {
     if (soundEngine) soundEngine.playClickSound();
   };
 
-  // Cancel / Give Up / Wilt session
-  const cancelSession = useCallback((reason: 'give_up' | 'tab_away' = 'give_up') => {
-    if (!activeSession) return;
+  // Cancel / Give Up / Wilt session. Accepts an optional explicit session snapshot for
+  // callers inside a setActiveSession updater (where `prev` is fresher than the ref);
+  // everyone else (button clicks, the visibility handler) falls back to the ref.
+  const cancelSession = useCallback((reason: 'give_up' | 'tab_away' = 'give_up', sessionOverride?: ActiveSession) => {
+    const session = sessionOverride ?? activeSessionRef.current;
+    if (!session) return;
 
     if (state.settings.soundEffectsEnabled && soundEngine) {
       soundEngine.playWiltSound();
@@ -203,22 +270,22 @@ export function useGardenStore() {
     }
 
     const wiltedPlant: PlantRecord = {
-      id: activeSession.id,
-      plantedAt: activeSession.startTime,
-      durationMinutes: Math.round(activeSession.targetSeconds / 60),
-      actualFocusedSeconds: activeSession.elapsedSeconds,
+      id: session.id,
+      plantedAt: session.startTime,
+      durationMinutes: Math.round(session.targetSeconds / 60),
+      actualFocusedSeconds: session.elapsedSeconds,
       completed: false,
-      species: activeSession.species,
-      categoryTag: activeSession.categoryTag,
-      intention: activeSession.intention,
-      colorSeed: generatePlantColorSeed(activeSession.species, activeSession.timeOfDay),
-      timeOfDay: activeSession.timeOfDay,
+      species: session.species,
+      categoryTag: session.categoryTag,
+      intention: session.intention,
+      colorSeed: generatePlantColorSeed(session.species),
+      timeOfDay: session.timeOfDay,
       journalNote: `Wilted due to ${reason === 'give_up' ? 'giving up early' : 'tab switch timeout'}.`,
     };
 
     setState((prev) => {
       const updatedPlants = [wiltedPlant, ...prev.plants];
-      const metrics = updateStreakAndMetrics(updatedPlants);
+      const metrics = updateStreakAndMetrics(updatedPlants, prev);
       return {
         ...prev,
         plants: updatedPlants,
@@ -227,11 +294,12 @@ export function useGardenStore() {
     });
 
     setActiveSession(null);
-  }, [activeSession, state.settings]);
+  }, [state.settings]);
 
-  // Complete / Bloom session
-  const completeSession = useCallback((journalNote?: string) => {
-    if (!activeSession) return;
+  // Complete / Bloom session. Same sessionOverride pattern as cancelSession above.
+  const completeSession = useCallback((journalNote?: string, sessionOverride?: ActiveSession) => {
+    const session = sessionOverride ?? activeSessionRef.current;
+    if (!session) return;
 
     // Trigger celebration effects
     if (state.settings.soundEffectsEnabled && soundEngine) {
@@ -249,16 +317,16 @@ export function useGardenStore() {
     } catch {}
 
     const bloomedPlant: PlantRecord = {
-      id: activeSession.id,
-      plantedAt: activeSession.startTime,
-      durationMinutes: Math.round(activeSession.targetSeconds / 60),
-      actualFocusedSeconds: activeSession.targetSeconds,
+      id: session.id,
+      plantedAt: session.startTime,
+      durationMinutes: Math.round(session.targetSeconds / 60),
+      actualFocusedSeconds: session.targetSeconds,
       completed: true,
-      species: activeSession.species,
-      categoryTag: activeSession.categoryTag,
-      intention: activeSession.intention,
-      colorSeed: generatePlantColorSeed(activeSession.species, activeSession.timeOfDay),
-      timeOfDay: activeSession.timeOfDay,
+      species: session.species,
+      categoryTag: session.categoryTag,
+      intention: session.intention,
+      colorSeed: generatePlantColorSeed(session.species),
+      timeOfDay: session.timeOfDay,
       journalNote: journalNote || 'Fulfill focus session with clarity.',
     };
 
@@ -266,7 +334,7 @@ export function useGardenStore() {
 
     setState((prev) => {
       const updatedPlants = [bloomedPlant, ...prev.plants];
-      const metrics = updateStreakAndMetrics(updatedPlants);
+      const metrics = updateStreakAndMetrics(updatedPlants, prev);
       return {
         ...prev,
         plants: updatedPlants,
@@ -276,9 +344,12 @@ export function useGardenStore() {
     });
 
     setActiveSession(null);
-  }, [activeSession, state.settings]);
+  }, [state.settings]);
 
-  // Main timer tick loop
+  // Main timer tick loop. Depends only on session identity/pause-state (primitives),
+  // not the whole activeSession object — that object gets a new reference every single
+  // tick (see the setActiveSession call below), which previously tore down and rebuilt
+  // this interval every second instead of running one persistent interval per session.
   useEffect(() => {
     if (!activeSession || activeSession.isPaused) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -293,7 +364,7 @@ export function useGardenStore() {
         if (prev.isGraceActive) {
           const nextGrace = prev.graceTimeRemaining - 1;
           if (nextGrace <= 0) {
-            cancelSession('tab_away');
+            cancelSession('tab_away', prev);
             return null;
           }
           return { ...prev, graceTimeRemaining: nextGrace };
@@ -301,7 +372,7 @@ export function useGardenStore() {
 
         const nextElapsed = prev.elapsedSeconds + 1;
         if (nextElapsed >= prev.targetSeconds) {
-          completeSession();
+          completeSession(undefined, prev);
           return null;
         }
         return { ...prev, elapsedSeconds: nextElapsed };
@@ -311,22 +382,25 @@ export function useGardenStore() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [activeSession, cancelSession, completeSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession?.id, activeSession?.isPaused, cancelSession, completeSession]);
 
-  // Tab visibility detection
+  // Tab visibility detection. Same fix as above: depends on session id/strictness
+  // (stable for a session's whole lifetime) instead of the whole activeSession object.
   useEffect(() => {
     if (!activeSession) return;
+    const strictness = activeSession.strictness;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        if (activeSession.strictness === 'strict') {
+        if (strictness === 'strict') {
           cancelSession('tab_away');
-        } else if (activeSession.strictness === 'gentle') {
+        } else if (strictness === 'gentle') {
           setActiveSession((prev) => prev ? { ...prev, isGraceActive: true } : null);
         }
       } else {
         // Returned to tab
-        if (activeSession.strictness === 'gentle') {
+        if (strictness === 'gentle') {
           setActiveSession((prev) => prev ? { ...prev, isGraceActive: false, graceTimeRemaining: state.settings.gracePeriodSeconds } : null);
         }
       }
@@ -336,7 +410,8 @@ export function useGardenStore() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [activeSession, cancelSession, state.settings.gracePeriodSeconds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession?.id, activeSession?.strictness, cancelSession, state.settings.gracePeriodSeconds]);
 
   // Settings updates
   const updateSettings = (partial: Partial<GardenSettings>) => {
@@ -356,7 +431,7 @@ export function useGardenStore() {
   const deletePlant = (id: string) => {
     setState((prev) => {
       const updatedPlants = prev.plants.filter((p) => p.id !== id);
-      const metrics = updateStreakAndMetrics(updatedPlants);
+      const metrics = updateStreakAndMetrics(updatedPlants, prev);
       return { ...prev, plants: updatedPlants, ...metrics };
     });
   };
@@ -389,7 +464,7 @@ export function useGardenStore() {
       reader.onload = () => {
         try {
           const parsed = JSON.parse(reader.result as string);
-          if (parsed && Array.isArray(parsed.plants) && parsed.settings) {
+          if (isValidGardenState(parsed)) {
             setState({ ...INITIAL_STATE, ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } });
             resolve(true);
           } else {

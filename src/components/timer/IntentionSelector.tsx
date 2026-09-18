@@ -17,6 +17,7 @@ interface IntentionSelectorProps {
 
 const CATEGORIES: FocusCategory[] = ['coding', 'reading', 'writing', 'design', 'learning', 'zen'];
 const DURATION_PRESETS = [15, 25, 45, 60, 90];
+const MAX_CUSTOM_DURATION_MINUTES = 300;
 const SPECIES_OPTIONS: { id: PlantSpecies; name: string; icon: string; desc: string }[] = [
   { id: 'wildflower', name: 'Meadow Wildflower', icon: '🌸', desc: 'Fast, vibrant bloom for standard sprints.' },
   { id: 'bonsai', name: 'Japanese Bonsai', icon: '🪴', desc: 'Majestic gnarled trunk for deep work.' },
@@ -37,7 +38,11 @@ export const IntentionSelector: React.FC<IntentionSelectorProps> = ({
 
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalDuration = isCustom && customMinutes ? Math.max(1, parseInt(customMinutes, 10)) : duration;
+    const parsedCustom = parseInt(customMinutes, 10);
+    const finalDuration =
+      isCustom && customMinutes && !isNaN(parsedCustom)
+        ? Math.min(MAX_CUSTOM_DURATION_MINUTES, Math.max(1, parsedCustom))
+        : duration;
     onStartSession(finalDuration, intention, category, species);
   };
 
@@ -57,11 +62,12 @@ export const IntentionSelector: React.FC<IntentionSelectorProps> = ({
 
         {/* Intention Input */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <label htmlFor="intention-input" className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Session Goal / Intention
           </label>
           <div className="relative">
             <input
+              id="intention-input"
               type="text"
               value={intention}
               onChange={(e) => setIntention(e.target.value)}
@@ -150,10 +156,11 @@ export const IntentionSelector: React.FC<IntentionSelectorProps> = ({
               <input
                 type="number"
                 min="1"
-                max="300"
+                max={MAX_CUSTOM_DURATION_MINUTES}
                 value={customMinutes}
                 onChange={(e) => setCustomMinutes(e.target.value)}
                 placeholder="Custom mins..."
+                aria-label="Custom duration in minutes"
                 className="px-3 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 w-28"
               />
             )}

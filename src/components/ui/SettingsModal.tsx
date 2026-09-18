@@ -73,7 +73,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Sun className="w-3.5 h-3.5 text-emerald-500" />
               <span>Appearance</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div role="radiogroup" aria-label="Appearance" className="grid grid-cols-3 gap-2">
               {[
                 { id: 'light', label: 'Light', icon: Sun },
                 { id: 'dark', label: 'Dark', icon: Moon },
@@ -85,6 +85,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     key={item.id}
                     type="button"
+                    role="radio"
+                    aria-checked={isSelected}
                     onClick={() => onUpdateSettings({ themeMode: item.id as ThemeMode })}
                     className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 transition-all ${
                       isSelected
@@ -106,7 +108,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Shield className="w-3.5 h-3.5 text-emerald-500" />
               <span>Anti-Distraction Policy</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div role="radiogroup" aria-label="Anti-Distraction Policy" className="grid grid-cols-3 gap-2">
               {[
                 { id: 'gentle', label: 'Gentle', desc: '15s Grace' },
                 { id: 'strict', label: 'Strict Monk', desc: 'Instant Wilt' },
@@ -115,6 +117,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   key={item.id}
                   type="button"
+                  role="radio"
+                  aria-checked={settings.strictness === item.id}
                   onClick={() => onUpdateSettings({ strictness: item.id as StrictnessLevel })}
                   className={`p-2.5 rounded-2xl border text-left transition-all ${
                     settings.strictness === item.id
@@ -139,6 +143,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <button
               type="button"
+              role="switch"
+              aria-checked={settings.soundEffectsEnabled}
+              aria-label="Bloom Sound & Audio FX"
               onClick={() => onUpdateSettings({ soundEffectsEnabled: !settings.soundEffectsEnabled })}
               className={`w-11 h-6 rounded-full transition-colors relative p-1 ${
                 settings.soundEffectsEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
@@ -150,6 +157,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`}
               />
             </button>
+          </div>
+
+          {/* Ambient Volume */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label htmlFor="ambient-volume" className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Volume2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Ambient Volume</span>
+              </label>
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                {Math.round(settings.ambientVolume * 100)}%
+              </span>
+            </div>
+            <input
+              id="ambient-volume"
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={settings.ambientVolume}
+              onChange={(e) => onUpdateSettings({ ambientVolume: parseFloat(e.target.value) })}
+              className="w-full accent-emerald-600"
+            />
           </div>
 
           {/* Data Backup / Export & Import */}

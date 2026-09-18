@@ -8,8 +8,8 @@ export function getTimeOfDay(): TimeOfDay {
   return 'night';
 }
 
-export function generatePlantColorSeed(species: PlantSpecies, timeOfDay: TimeOfDay = getTimeOfDay()): PlantColorSeed {
-  // Species specific palettes blended with timeOfDay vibes
+export function generatePlantColorSeed(species: PlantSpecies): PlantColorSeed {
+  // Species-specific palette
   switch (species) {
     case 'wildflower':
       return {

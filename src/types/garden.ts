@@ -24,7 +24,7 @@ export interface PlantRecord {
   categoryTag: FocusCategory;   // Intention category
   intention: string;             // Session focus goal
   journalNote?: string;          // Post-session reflection note
-  colorSeed: PlantColorSeed;     // Color palette derived from species & time of day
+  colorSeed: PlantColorSeed;     // Color palette derived from species
   timeOfDay: TimeOfDay;
 }
 

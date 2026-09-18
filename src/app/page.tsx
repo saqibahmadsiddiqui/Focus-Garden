@@ -32,7 +32,6 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<AppView>('timer');
   const [selectedInspectPlant, setSelectedInspectPlant] = useState<PlantRecord | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [ambientSound, setAmbientSound] = useState<string | null>(null);
 
   if (!isLoaded) {
     return (
@@ -71,8 +70,8 @@ export default function Home() {
                 onPause={pauseSession}
                 onResume={resumeSession}
                 onGiveUp={() => cancelSession('give_up')}
-                ambientSound={ambientSound}
-                onSelectAmbientSound={(snd) => setAmbientSound(snd)}
+                ambientSound={state.settings.ambientSound}
+                onSelectAmbientSound={(snd) => updateSettings({ ambientSound: snd })}
               />
             ) : (
               <IntentionSelector

@@ -161,7 +161,7 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({
             {/* Reflection Note Field */}
             <div className="space-y-1.5 pt-2">
               <div className="flex justify-between items-center text-xs font-semibold text-slate-500 dark:text-slate-400">
-                <span>Session Reflection Note</span>
+                <label htmlFor="journal-note-textarea">Session Reflection Note</label>
                 {!isEditingNote && (
                   <button
                     type="button"
@@ -177,6 +177,7 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({
               {isEditingNote ? (
                 <div className="space-y-2">
                   <textarea
+                    id="journal-note-textarea"
                     rows={3}
                     value={journalNote}
                     onChange={(e) => setJournalNote(e.target.value)}

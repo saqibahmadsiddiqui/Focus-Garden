@@ -5,8 +5,6 @@ class SoundEngine {
   private ctx: AudioContext | null = null;
   private ambientGainNode: GainNode | null = null;
   private noiseSource: AudioBufferSourceNode | null = null;
-  private currentAmbient: string | null = null;
-  private isMuted: boolean = false;
   private volume: number = 0.5;
 
   private initContext() {
@@ -24,7 +22,9 @@ class SoundEngine {
   public setVolume(vol: number) {
     this.volume = Math.max(0, Math.min(1, vol));
     if (this.ambientGainNode && this.ctx) {
-      this.ambientGainNode.gain.setValueAtTime(this.volume * 0.3, this.ctx.currentTime);
+      // Same 0.2 scale factor startAmbient uses, so adjusting the slider mid-playback
+      // doesn't jump the level relative to what just started.
+      this.ambientGainNode.gain.setValueAtTime(this.volume * 0.2, this.ctx.currentTime);
     }
   }
 
@@ -57,7 +57,6 @@ class SoundEngine {
     if (!this.ctx) return;
     this.stopAmbient();
 
-    this.currentAmbient = type;
     const noiseBuffer = this.createNoiseBuffer();
     if (!noiseBuffer) return;
 
@@ -99,7 +98,6 @@ class SoundEngine {
       } catch {}
       this.noiseSource = null;
     }
-    this.currentAmbient = null;
   }
 
   // Play a soft organic wooden bloom chime sequence

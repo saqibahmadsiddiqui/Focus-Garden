@@ -25,7 +25,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
   onSelectAmbientSound,
 }) => {
   const [showGiveUpConfirm, setShowGiveUpConfirm] = useState(false);
-  const colorSeed = generatePlantColorSeed(session.species, session.timeOfDay);
+  const colorSeed = generatePlantColorSeed(session.species);
   const categoryBadge = getCategoryBadgeStyle(session.categoryTag);
 
   const remainingSeconds = Math.max(0, session.targetSeconds - session.elapsedSeconds);

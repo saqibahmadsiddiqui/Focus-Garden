@@ -57,7 +57,7 @@ export const GardenGrid: React.FC<GardenGridProps> = ({
             All Flora
           </button>
 
-          {['coding', 'reading', 'writing', 'design', 'learning'].map((cat) => (
+          {['coding', 'reading', 'writing', 'design', 'learning', 'zen'].map((cat) => (
             <button
               key={cat}
               type="button"
