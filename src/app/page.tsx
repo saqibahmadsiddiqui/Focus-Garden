@@ -103,7 +103,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="w-full py-4 text-center text-xs text-slate-400 dark:text-slate-600 border-t border-slate-200/40 dark:border-slate-800/40">
-        Focus Garden • Time is Water • Growth & Sanctuary Focus App
+        Focus Garden • Time is Water • Growth & Sanctuary Focus App • Created by Saqib Ahmad Siddiqui • <a href="https://www.linkedin.com/in/saqib-ahmad-siddiqui/" target="_blank" rel="noopener noreferrer" className="underline">Saqib Ahmad Siddiqui</a>
       </footer>
 
       {/* Plant Card Inspector Modal */}

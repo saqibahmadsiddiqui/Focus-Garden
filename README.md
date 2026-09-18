@@ -61,7 +61,3 @@ src/
 ## 🔒 Privacy
 
 Focus Garden stores everything in your browser's `localStorage` under a single key. There is no backend, no analytics, and no account system — your focus data never leaves your device unless you explicitly export it.
-
-## 📄 License
-
-MIT — see [LICENSE](LICENSE).
