@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { PlantSpecies, PlantColorSeed, PlantStage } from '@/types/garden';
 import { WildflowerSVG } from './WildflowerSVG';
 import { BonsaiSVG } from './BonsaiSVG';
@@ -30,6 +30,8 @@ export const PlantSVG: React.FC<PlantSVGProps> = ({
   colorSeed,
   playbackProgressOverride,
 }) => {
+  const shouldReduceMotion = useReducedMotion();
+
   // Calculate exact percentage progress (0 to 1)
   let progress = targetSeconds > 0 ? Math.min(1, elapsedSeconds / targetSeconds) : 0;
   if (playbackProgressOverride !== undefined) {
@@ -89,11 +91,11 @@ export const PlantSVG: React.FC<PlantSVGProps> = ({
         </motion.div>
       )}
 
-      {/* Organic Gentle Idle Sway Animation Loop */}
+      {/* Organic Gentle Idle Sway Animation Loop (disabled when reduced motion is preferred) */}
       <motion.div
         className="w-full h-full flex items-center justify-center"
         animate={
-          isPaused || isWilt
+          isPaused || isWilt || shouldReduceMotion
             ? { rotate: isWilt ? 8 : 0 }
             : {
                 rotate: [-1.2, 1.2, -1.2],
@@ -101,7 +103,7 @@ export const PlantSVG: React.FC<PlantSVGProps> = ({
               }
         }
         transition={
-          isPaused || isWilt
+          isPaused || isWilt || shouldReduceMotion
             ? { duration: 0.5 }
             : {
                 repeat: Infinity,

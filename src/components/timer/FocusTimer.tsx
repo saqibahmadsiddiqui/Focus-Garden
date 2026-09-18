@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ActiveSession } from '@/store/useGardenStore';
 import { PlantSVG } from '../plant/PlantSVG';
 import { generatePlantColorSeed, getCategoryBadgeStyle } from '@/utils/colorGenerator';
-import { Pause, Play, XCircle, Volume2, VolumeX, ShieldCheck } from 'lucide-react';
+import { Pause, Play, XCircle, Volume2, VolumeX } from 'lucide-react';
 import { soundEngine } from '@/utils/soundEngine';
 
 interface FocusTimerProps {

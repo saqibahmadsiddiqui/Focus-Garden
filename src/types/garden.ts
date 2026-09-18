@@ -3,6 +3,7 @@ export type FocusCategory = 'coding' | 'reading' | 'writing' | 'design' | 'learn
 export type StrictnessLevel = 'gentle' | 'strict' | 'zen';
 export type TimeOfDay = 'morning' | 'afternoon' | 'dusk' | 'night';
 export type AppView = 'timer' | 'garden' | 'analytics' | 'settings';
+export type ThemeMode = 'auto' | 'light' | 'dark';
 
 export interface PlantColorSeed {
   stem: string;
@@ -35,7 +36,7 @@ export interface GardenSettings {
   ambientSound: string | null;   // 'rain' | 'forest' | 'waves' | 'lofi' | null
   ambientVolume: number;         // 0 to 1
   soundEffectsEnabled: boolean;
-  themeMode: 'auto' | 'light' | 'dark' | 'dusk';
+  themeMode: ThemeMode;
 }
 
 export interface GardenState {

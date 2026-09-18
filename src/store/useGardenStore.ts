@@ -51,12 +51,15 @@ export function useGardenStore() {
   const [isLoaded, setIsLoaded] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount. This must stay an effect (not a lazy useState
+  // initializer) because localStorage is only readable client-side; reading it during
+  // render would desync the server-rendered HTML from the client's first paint.
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setState(parsed);
       }
     } catch (e) {
@@ -74,6 +77,27 @@ export function useGardenStore() {
       console.error('Failed to save to localStorage:', e);
     }
   }, [state, isLoaded]);
+
+  // Apply the resolved light/dark theme to <html>, tracking the OS preference while in 'auto'
+  useEffect(() => {
+    if (!isLoaded) return;
+    const root = document.documentElement;
+    const mode = state.settings.themeMode;
+
+    const applyResolvedTheme = (mql: MediaQueryList) => {
+      const isDark = mode === 'dark' || (mode === 'auto' && mql.matches);
+      root.classList.toggle('dark', isDark);
+    };
+
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    applyResolvedTheme(mql);
+
+    if (mode === 'auto') {
+      const handleChange = () => applyResolvedTheme(mql);
+      mql.addEventListener('change', handleChange);
+      return () => mql.removeEventListener('change', handleChange);
+    }
+  }, [state.settings.themeMode, isLoaded]);
 
   // Calculate streak logic helper
   const updateStreakAndMetrics = (plants: PlantRecord[]) => {
@@ -344,6 +368,42 @@ export function useGardenStore() {
     }
   };
 
+  // Export the full garden state as a downloadable JSON backup file
+  const exportData = () => {
+    const dataStr = JSON.stringify(state, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `focus-garden-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // Import garden state from a previously exported JSON backup file
+  const importData = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result as string);
+          if (parsed && Array.isArray(parsed.plants) && parsed.settings) {
+            setState({ ...INITIAL_STATE, ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } });
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        } catch {
+          resolve(false);
+        }
+      };
+      reader.onerror = () => resolve(false);
+      reader.readAsText(file);
+    });
+  };
+
   return {
     state,
     activeSession,
@@ -357,5 +417,7 @@ export function useGardenStore() {
     updateJournalNote,
     deletePlant,
     clearAllData,
+    exportData,
+    importData,
   };
 }

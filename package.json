@@ -2,6 +2,8 @@
   "name": "focus-garden-app",
   "version": "0.1.0",
   "private": true,
+  "description": "A calm Pomodoro-style focus timer that grows a living SVG garden while you work.",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

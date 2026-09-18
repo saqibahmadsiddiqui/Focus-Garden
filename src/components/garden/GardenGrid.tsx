@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { PlantRecord, FocusCategory } from '@/types/garden';
 import { PlantSVG } from '../plant/PlantSVG';
 import { getCategoryBadgeStyle } from '@/utils/colorGenerator';
-import { Sprout, Filter, Calendar } from 'lucide-react';
+import { Leaf } from 'lucide-react';
 
 interface GardenGridProps {
   plants: PlantRecord[];
@@ -44,9 +44,12 @@ export const GardenGrid: React.FC<GardenGridProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setSelectedTag('all')}
+            onClick={() => {
+              setSelectedTag('all');
+              setShowWiltsOnly(false);
+            }}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-              selectedTag === 'all'
+              selectedTag === 'all' && !showWiltsOnly
                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                 : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
             }`}
@@ -58,9 +61,13 @@ export const GardenGrid: React.FC<GardenGridProps> = ({
             <button
               key={cat}
               type="button"
-              onClick={() => setSelectedTag(cat as FocusCategory)}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all capitalize ${
-                selectedTag === cat
+              onClick={() => {
+                setSelectedTag(cat as FocusCategory);
+                setShowWiltsOnly(false);
+              }}
+              disabled={showWiltsOnly}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all capitalize disabled:opacity-40 ${
+                selectedTag === cat && !showWiltsOnly
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                   : 'bg-slate-100/70 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
               }`}
@@ -68,6 +75,19 @@ export const GardenGrid: React.FC<GardenGridProps> = ({
               #{cat}
             </button>
           ))}
+
+          <button
+            type="button"
+            onClick={() => setShowWiltsOnly((prev) => !prev)}
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1 ${
+              showWiltsOnly
+                ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                : 'bg-slate-100/70 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+            }`}
+          >
+            <Leaf className="w-3 h-3" />
+            <span>Wilted Only</span>
+          </button>
         </div>
       </div>
 

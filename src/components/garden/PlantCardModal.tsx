@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PlantRecord } from '@/types/garden';
 import { PlantSVG } from '../plant/PlantSVG';
 import { getCategoryBadgeStyle } from '@/utils/colorGenerator';
-import { X, Play, Edit3, Trash2, Calendar, Clock, Tag } from 'lucide-react';
+import { X, Play, Edit3, Trash2, Calendar, Clock } from 'lucide-react';
 
 interface PlantCardModalProps {
   plant: PlantRecord | null;
@@ -24,14 +24,18 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({
   const [playbackProgress, setPlaybackProgress] = useState(1);
   const [journalNote, setJournalNote] = useState('');
   const [isEditingNote, setIsEditingNote] = useState(false);
+  const [loadedPlantId, setLoadedPlantId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (plant) {
-      setJournalNote(plant.journalNote || '');
-      setPlaybackProgress(1);
-      setIsPlayingTimeLapse(false);
-    }
-  }, [plant]);
+  // Reset transient UI state whenever a different plant is opened. Adjusting state
+  // directly during render (React's recommended pattern for "state depends on a changed
+  // prop") avoids the extra render pass a useEffect-based reset would cause.
+  if (plant && plant.id !== loadedPlantId) {
+    setLoadedPlantId(plant.id);
+    setJournalNote(plant.journalNote || '');
+    setPlaybackProgress(1);
+    setIsPlayingTimeLapse(false);
+    setIsEditingNote(false);
+  }
 
   // Handle 4-second time-lapse bloom animation playback
   useEffect(() => {
@@ -98,6 +102,7 @@ export const PlantCardModal: React.FC<PlantCardModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close plant details"
               className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
             >
               <X className="w-5 h-5" />

@@ -25,6 +25,8 @@ export default function Home() {
     updateJournalNote,
     deletePlant,
     clearAllData,
+    exportData,
+    importData,
   } = useGardenStore();
 
   const [currentView, setCurrentView] = useState<AppView>('timer');
@@ -119,6 +121,8 @@ export default function Home() {
         settings={state.settings}
         onUpdateSettings={updateSettings}
         onClearAllData={clearAllData}
+        onExportData={exportData}
+        onImportData={importData}
       />
     </div>
   );

@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GardenSettings, StrictnessLevel } from '@/types/garden';
-import { X, Shield, Volume2, Trash2, Moon, Sun } from 'lucide-react';
+import { GardenSettings, StrictnessLevel, ThemeMode } from '@/types/garden';
+import { X, Shield, Volume2, Trash2, Moon, Sun, Monitor, Download, Upload, Check } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,6 +11,8 @@ interface SettingsModalProps {
   settings: GardenSettings;
   onUpdateSettings: (partial: Partial<GardenSettings>) => void;
   onClearAllData: () => void;
+  onExportData: () => void;
+  onImportData: (file: File) => Promise<boolean>;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -19,8 +21,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   settings,
   onUpdateSettings,
   onClearAllData,
+  onExportData,
+  onImportData,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
   if (!isOpen) return null;
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const success = await onImportData(file);
+    setImportStatus(success ? 'success' : 'error');
+    setTimeout(() => setImportStatus('idle'), 2500);
+  };
 
   return (
     <AnimatePresence>
@@ -29,7 +49,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden p-6 space-y-6"
+          className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-6"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -40,10 +60,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close settings"
               className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+
+          {/* Appearance / Theme Selector */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <Sun className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Appearance</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'light', label: 'Light', icon: Sun },
+                { id: 'dark', label: 'Dark', icon: Moon },
+                { id: 'auto', label: 'Auto', icon: Monitor },
+              ].map((item) => {
+                const ThemeIcon = item.icon;
+                const isSelected = settings.themeMode === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onUpdateSettings({ themeMode: item.id as ThemeMode })}
+                    className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 transition-all ${
+                      isSelected
+                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-emerald-500/30'
+                        : 'bg-slate-100/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    <ThemeIcon className="w-4 h-4" />
+                    <p className="text-xs">{item.label}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Strictness Level Selector */}
@@ -96,6 +150,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }`}
               />
             </button>
+          </div>
+
+          {/* Data Backup / Export & Import */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Data Backup
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={onExportData}
+                className="p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 hover:border-emerald-500/40 transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export Garden</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleImportClick}
+                className="p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 hover:border-emerald-500/40 transition-all"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Import Garden</span>
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json"
+              onChange={handleFileSelected}
+              className="hidden"
+            />
+            {importStatus === 'success' && (
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Garden imported successfully.
+              </p>
+            )}
+            {importStatus === 'error' && (
+              <p className="text-[11px] text-rose-500">
+                That file doesn&apos;t look like a valid Focus Garden backup.
+              </p>
+            )}
           </div>
 
           {/* Clear Data Danger Zone */}

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { PlantColorSeed, PlantStage } from '@/types/garden';
 
 interface WildflowerSVGProps {
@@ -16,6 +16,7 @@ export const WildflowerSVG: React.FC<WildflowerSVGProps> = ({
   progress,
   colorSeed,
 }) => {
+  const shouldReduceMotion = useReducedMotion();
   const isWilt = stage === 'wilt';
   const isBloom = stage === 5 || progress >= 1;
 
@@ -54,8 +55,12 @@ export const WildflowerSVG: React.FC<WildflowerSVGProps> = ({
           r="45"
           fill="url(#flowerGlow)"
           initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: [1, 1.25, 1], opacity: [0.6, 0.9, 0.6] }}
-          transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+          animate={
+            shouldReduceMotion
+              ? { scale: 1, opacity: 0.75 }
+              : { scale: [1, 1.25, 1], opacity: [0.6, 0.9, 0.6] }
+          }
+          transition={shouldReduceMotion ? { duration: 0.5 } : { repeat: Infinity, duration: 3, ease: 'easeInOut' }}
         />
       )}
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { PlantColorSeed, PlantStage } from '@/types/garden';
 
 interface BonsaiSVGProps {
@@ -15,6 +15,7 @@ export const BonsaiSVG: React.FC<BonsaiSVGProps> = ({
   progress,
   colorSeed,
 }) => {
+  const shouldReduceMotion = useReducedMotion();
   const isWilt = stage === 'wilt';
   const isBloom = stage === 5 || progress >= 1;
 
@@ -41,8 +42,12 @@ export const BonsaiSVG: React.FC<BonsaiSVGProps> = ({
           ry="45"
           fill="url(#bonsaiBloomGlow)"
           initial={{ scale: 0 }}
-          animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-          transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+          animate={
+            shouldReduceMotion
+              ? { scale: 1, opacity: 0.85 }
+              : { scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }
+          }
+          transition={shouldReduceMotion ? { duration: 0.5 } : { repeat: Infinity, duration: 4, ease: 'easeInOut' }}
         />
       )}
 

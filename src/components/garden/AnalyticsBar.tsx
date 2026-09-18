@@ -3,7 +3,6 @@
 import React from 'react';
 import { PlantRecord, FocusCategory } from '@/types/garden';
 import { Flame, Clock, Trophy, Target, PieChart } from 'lucide-react';
-import { getCategoryBadgeStyle } from '@/utils/colorGenerator';
 
 interface AnalyticsBarProps {
   plants: PlantRecord[];
@@ -19,7 +18,6 @@ export const AnalyticsBar: React.FC<AnalyticsBarProps> = ({
   totalFocusedMinutes,
 }) => {
   const completedCount = plants.filter((p) => p.completed).length;
-  const totalWilts = plants.filter((p) => !p.completed).length;
   const totalSessions = plants.length;
   const completionRate = totalSessions > 0 ? Math.round((completedCount / totalSessions) * 100) : 100;
   const totalHours = (totalFocusedMinutes / 60).toFixed(1);
